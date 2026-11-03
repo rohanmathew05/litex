@@ -11,6 +11,7 @@
 import os
 import sys
 import json
+import time
 import socket
 import shutil
 import asyncio
@@ -67,6 +68,7 @@ class TestLiteXMCPSim(unittest.TestCase):
                         "--uart-tcp",
                         f"--uart-tcp-port={uart_port}",
                     ])
+                    server = None
                     try:
                         # Wait for the simulation to be built and to listen on its UART TCP port.
                         from litex.tools.litex_mcp import _tcp_listening
@@ -77,19 +79,20 @@ class TestLiteXMCPSim(unittest.TestCase):
                             if not status["running"]:
                                 raise AssertionError(f"Simulation exited (return code {status['returncode']}).")
                             await asyncio.sleep(1)
-                        await _call(session, "litex_server_start", args=[
+                        server = await _call(session, "litex_server_start", args=[
                             "--uart",
                             f"--uart-port=socket://localhost:{uart_port}",
                             f"--bind-port={server_port}",
                         ], timeout=60)
                         # litex_server is started in the background: retry until it accepts the connection.
-                        for i in range(60):
+                        start = time.time()
+                        while True:
                             try:
                                 check = await _call(session, "litex_connect", port=server_port,
-                                    csr_csv=sim["csr_csv"], timeout=10)
+                                    csr_csv=sim["csr_csv"], timeout=30)
                                 break
                             except AssertionError:
-                                if i == 59:
+                                if (time.time() - start) > 120:
                                     raise
                                 await asyncio.sleep(1)
                         self.assertIn("LiteX", check["ident"])
@@ -113,8 +116,12 @@ class TestLiteXMCPSim(unittest.TestCase):
                             self.assertEqual(info["platform"]["name"], "sim")
                             self.assertEqual(info["soc"]["cpu_type"],  "vexriscv")
                     except AssertionError:
-                        status = await _call(session, "litex_job_status", job=sim["job"], tail=40)
-                        print("\n".join(status.get("log_tail", [])))
+                        # Status and log tails of the jobs (simulation, litex_server) for the CI log.
+                        for job in [sim["job"]] + ([] if server is None else [server["job"]]):
+                            status = await _call(session, "litex_job_status", job=job, tail=40)
+                            print(f"{job}: running={status['running']} returncode={status['returncode']} "
+                                f"elapsed={status['elapsed_s']}s")
+                            print("\n".join(status.get("log_tail", [])))
                         raise
 
 if __name__ == "__main__":
