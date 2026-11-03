@@ -309,6 +309,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # The cached Verilator install compiles the simulations through ccache.
+      - name: Setup CCache
+        uses: hendrikmuhs/ccache-action@v1.2
+
       - name: Install Tools
         run: |
           sudo apt-get update
@@ -346,6 +350,7 @@ jobs:
       - name: Build Verilator
         if: steps.verilator-cache.outputs.cache-hit != 'true'
         run: |
+          export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
           git clone https://github.com/verilator/verilator
           cd verilator
           git checkout 7d2d32420a630befa4097170ecbf227e04e32522
