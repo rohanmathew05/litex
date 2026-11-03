@@ -319,6 +319,12 @@ jobs:
           sudo apt-get install build-essential ninja-build help2man flex bison libfl-dev libfl2 zlib1g-dev
           sudo apt-get install libevent-dev libjson-c-dev
 
+      # The cached Verilator install (built by the build job) runs its Python 3.9 interpreter.
+      - name: Set up Python 3.9 for Verilator
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
       # The MCP Python SDK needs Python >= 3.10.
       - name: Set up Python
         uses: actions/setup-python@v4
