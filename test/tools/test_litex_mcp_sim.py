@@ -118,10 +118,12 @@ class TestLiteXMCPSim(unittest.TestCase):
                     except AssertionError:
                         # Status and log tails of the jobs (simulation, litex_server) for the CI log.
                         for job in [sim["job"]] + ([] if server is None else [server["job"]]):
-                            status = await _call(session, "litex_job_status", job=job, tail=40)
+                            status = await _call(session, "litex_job_status", job=job, tail=0)
                             print(f"{job}: running={status['running']} returncode={status['returncode']} "
                                 f"elapsed={status['elapsed_s']}s")
-                            print("\n".join(status.get("log_tail", [])))
+                            with open(status["log"], encoding="utf-8", errors="replace") as f:
+                                lines = f.read().splitlines()
+                            print("\n".join(lines[:30] + ["..."] + lines[-30:] if len(lines) > 60 else lines))
                         raise
 
 if __name__ == "__main__":
